@@ -1,4 +1,7 @@
-# Demo recording script (2–3 minutes)
+# English-only demo recording script (2–3 minutes)
+
+Use English narration, captions and chat messages throughout. Start at the new
+English conversation; earlier Chinese test history is not part of the demo.
 
 Before recording: worker online; analyst and repair agent connected to the same
 Switch room; dedicated fictional product has 25 available units. Keep the room
@@ -9,14 +12,14 @@ callback context, developer tools, or raw state files. No checkout or payment.
    Fix Room lets the merchant resolve it in team chat with two agents and a human approval.”
 2. **0:15 — Explain the room (15 seconds).** Identify the human, analyst and repair
    agent. “Switch delivers messages, shared room context and the agent-to-agent handoff.”
-3. **0:30 — Reset fixture (30–45 seconds).** Say/type `请把测试库存恢复为零`.
-   When asked, reply `仓库有0件`. Show the proposal's 25 → 0 change. The human
-   clicks **批准恢复到 0 件** once. Capture the immediate approved/executing card
+3. **0:30 — Reset fixture (30–45 seconds).** Say/type `Reset the test inventory to zero.`.
+   When asked, reply `The warehouse has 0 units.`. Show the proposal's 25 → 0 change. The human
+   clicks **Approve reset to 0 units** once. Capture the immediate approved/executing card
    and its automatic completed result. Explain that this sets up the simulated incident.
-4. **1:15 — Diagnose and propose (30 seconds).** Say/type `帮我看看毛巾为什么买不了`.
-   Show the analyst's sold-out finding. Reply `仓库有25件`. Show the Switch handoff
+4. **1:15 — Diagnose and propose (30 seconds).** Say/type `Why can’t customers buy the towel?`.
+   Show the analyst's sold-out finding. Reply `The warehouse has 25 units.`. Show the Switch handoff
    to the repair agent and its 0 → 25 proposal.
-5. **1:45 — Approve and verify (30–45 seconds).** Human clicks **批准补货到 25 件**.
+5. **1:45 — Approve and verify (30–45 seconds).** Human clicks **Approve restock to 25 units**.
    Keep the same page visible: approved/executing → inventory read-back → storefront
    propagation → clean-cart retest. Show completed stock 25 and one matching cart item.
 6. **2:30 — Close (15 seconds).** “Models interpret and explain. Deterministic code

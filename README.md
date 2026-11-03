@@ -58,14 +58,14 @@ No private project checkout or private Python harness is required.
 
 ## Room flow
 
-Talk to the analyst naturally in Chinese or English, for example “帮我看看毛巾为什么买不了”.
+Talk to the analyst naturally in Chinese or English, for example “Why can’t customers buy the towel?”.
 The analyst checks the real storefront and cart, then asks for the actual sellable
-quantity. Reply naturally, for example “仓库有 25 件”. The single pending case is
+quantity. Reply naturally, for example “The warehouse has 25 units.”. The single pending case is
 resolved internally; multiple pending cases require clarification.
 
 The analyst hands the fact to the repair agent through a real Switch thread.
 The repair agent shows the exact before/after quantity and native Mattermost
-**批准恢复到 0 件 / 批准补货到 25 件 / 取消** buttons. Only the configured human merchant can act on the
+**Approve reset to 0 units / Approve restock to 25 units / Cancel** buttons. Only the configured human merchant can act on the
 current proposal. The server verifies a confidential callback token, room, post,
 proposal hash and state; duplicate or old button actions only display status and never repeat the write. Textual
 approval is not accepted. A click never authorizes a later proposal.
@@ -76,7 +76,7 @@ six checks ten seconds apart; 429 stops immediately), and runs a clean browser
 cart retest. Results return to the room and update the original card. Cancel leaves stock unchanged.
 Completed-card status buttons write their response visibly into that same card.
 
-To restore the simulated fixture, say “请把测试库存恢复为零”, reply with zero when
+To restore the simulated fixture, say “Reset the test inventory to zero.”, reply with zero when
 asked, then approve its card. No case IDs, commands or hashes need copying.
 
 ## Mattermost button setup
