@@ -1,0 +1,1 @@
+export function stockOutcome(disabled,body,items,variant){const success=items.some(i=>i.variant_id===variant&&i.quantity===1);return {unavailable:!success&&(disabled||/already sold out|is sold out|out of stock/i.test(body)),success};}

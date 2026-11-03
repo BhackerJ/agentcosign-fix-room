@@ -1,0 +1,37 @@
+{
+  "fixture": "fictional Shopify development-store towel",
+  "rounds": [
+    {
+      "phase": "reset",
+      "state": "completed",
+      "result": "reset_verified",
+      "target": 0,
+      "approval_method": "mattermost_button",
+      "propagation": {
+        "attempts": 2,
+        "available": false
+      },
+      "cart": [],
+      "button_disabled": true
+    },
+    {
+      "phase": "stock",
+      "state": "completed",
+      "result": "improved",
+      "target": 25,
+      "approval_method": "mattermost_button",
+      "propagation": {
+        "attempts": 2,
+        "available": true
+      },
+      "cart": [
+        {
+          "quantity": 1,
+          "price": 1200,
+          "title": "Demo Hand Towel - Single"
+        }
+      ],
+      "button_disabled": false
+    }
+  ]
+}
