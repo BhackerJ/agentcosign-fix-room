@@ -1,13 +1,203 @@
 import {createServer} from 'node:http';
-import {randomBytes,timingSafeEqual} from 'node:crypto';
-export function validateButtonIdentity(body,c,user,channel){const token=body.context?.token;if(!c||body.user_id!==user||body.channel_id!==channel||body.post_id!==c.button_post_id||body.context?.hash!==c.hash||!['approve','cancel'].includes(body.context?.action)||typeof token!=='string'||token.length!==c.button_token?.length)return false;return timingSafeEqual(Buffer.from(token),Buffer.from(c.button_token));}
-export function validateClick(body,c,user,channel){return c?.state==='proposed'&&validateButtonIdentity(body,c,user,channel);}
-export function receiptUpdate(c,url){const cancelled=c.state==='cancelled';return {message:cancelled?'Cancelled. No inventory change.':c.state==='completed'?`**${c.mode==='reset'?'Test inventory reset':'Restock'} completed: inventory is ${c.target} units.**\n${c.mode==='reset'?'Storefront confirmed sold out; the fresh cart is empty.':'Storefront confirmed available; a fresh shopping session added 1 item.'}\nNo checkout or payment. No further approval is needed.${c.next_card_url?'\n\n[Open the latest approval proposal]('+c.next_card_url+')':''}`:'Approval received. Applying the change and verifying the result.',props:{attachments:[{text:'This proposal has been processed. Repeated clicks only show status and never repeat the inventory change.',actions:['approve','cancel'].map((action,i)=>({id:action,name:i===0?'View result':'View current task',type:'button',style:'default',integration:{url,context:{case_id:c.id,hash:c.hash,token:c.button_token,action}}}))}]}};}
+import {randomBytes, timingSafeEqual} from 'node:crypto';
+export function validateButtonIdentity(body, c, user, channel) {
+  const token = body.context?.token;
+  if (
+    !c ||
+    body.user_id !== user ||
+    body.channel_id !== channel ||
+    body.post_id !== c.button_post_id ||
+    body.context?.hash !== c.hash ||
+    !['approve', 'cancel'].includes(body.context?.action) ||
+    typeof token !== 'string' ||
+    token.length !== c.button_token?.length
+  )
+    return false;
+  return timingSafeEqual(Buffer.from(token), Buffer.from(c.button_token));
+}
+export function validateClick(body, c, user, channel) {
+  return c?.state === 'proposed' && validateButtonIdentity(body, c, user, channel);
+}
+export function receiptUpdate(c, url) {
+  const cancelled = c.state === 'cancelled';
+  return {
+    message: cancelled
+      ? 'Cancelled. No inventory change.'
+      : c.state === 'completed'
+        ? `**${c.mode === 'reset' ? 'Test inventory reset' : 'Restock'} completed: inventory is ${c.target} units.**\n${c.mode === 'reset' ? 'Storefront confirmed sold out; the fresh cart is empty.' : 'Storefront confirmed available; a fresh shopping session added 1 item.'}\nNo checkout or payment. No further approval is needed.${c.next_card_url ? '\n\n[Open the latest approval proposal](' + c.next_card_url + ')' : ''}`
+        : 'Approval received. Applying the change and verifying the result.',
+    props: {
+      attachments: [
+        {
+          text: 'This proposal has been processed. Repeated clicks only show status and never repeat the inventory change.',
+          actions: ['approve', 'cancel'].map((action, i) => ({
+            id: action,
+            name: i === 0 ? 'View result' : 'View current task',
+            type: 'button',
+            style: 'default',
+            integration: {url, context: {case_id: c.id, hash: c.hash, token: c.button_token, action}},
+          })),
+        },
+      ],
+    },
+  };
+}
 
 export class Buttons {
- constructor(env,state,onClick){this.e=env;this.state=state;this.onClick=onClick;}
- async api(path,method='GET',body){if(!this.token){const r=await fetch(this.e.MATTERMOST_URL+'/api/v4/users/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({login_id:this.e.MATTERMOST_INTEGRATION_USER,password:this.e.MATTERMOST_INTEGRATION_PASSWORD})});if(!r.ok)throw Error(`Mattermost login HTTP ${r.status}`);this.token=r.headers.get('token');}const r=await fetch(this.e.MATTERMOST_URL+'/api/v4'+path,{method,headers:{Authorization:`Bearer ${this.token}`,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});if(!r.ok)throw Error(`Mattermost ${path} HTTP ${r.status}`);return r.json();}
- async init(){this.channel=await this.api('/teams/name/switch/channels/name/fix-room');this.user=await this.api('/users/username/'+this.e.MATTERMOST_MERCHANT_USERNAME);if(this.user.is_bot)throw Error('Merchant must be human');this.server=createServer(async(req,res)=>{res.setHeader('Content-Type','application/json');try{if(req.method!=='POST'||req.url!=='/actions'){res.writeHead(404);return res.end('{}');}let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>16384)throw Error('Request too large');}const body=JSON.parse(raw),c=this.state.get(body.context?.case_id);if(!validateButtonIdentity(body,c,this.user.id,this.channel.id)){res.writeHead(403);return res.end(JSON.stringify({ephemeral_text:'This button is no longer valid, or you are not authorized to approve this change.'}));}if(c.state!=='proposed'){const latest=this.state.all().filter(x=>x.state==='proposed'&&x.button_post_id).sort((a,b)=>b.created-a.created)[0];const update=receiptUpdate(c,this.e.MATTERMOST_ACTION_URL);update.message+='\n\n'+(body.context.action==='approve'?'Result: '+(c.state==='completed'?'Verification passed.':'Current state: '+c.state):'Current task: '+(latest?'[Open pending proposal]('+this.e.MATTERMOST_URL+'/switch/pl/'+latest.button_post_id+')':'There is no proposal awaiting approval.'))+'\nStatus checked at '+new Date().toISOString();await this.api(`/posts/${c.button_post_id}/patch`,'PUT',update);return res.end(JSON.stringify({update,ephemeral_text:'Status updated on the original card.'}));}c.button_consumed=true;c.state=body.context.action==='cancel'?'cancelled':'approved';c[body.context.action==='cancel'?'cancelled_by':'approved_by']=body.user_id;c.button_decision_at=Date.now();c.approval_method='mattermost_button';this.state.save(c);res.end(JSON.stringify({update:receiptUpdate(c,this.e.MATTERMOST_ACTION_URL),ephemeral_text:body.context.action==='cancel'?'Cancelled. Inventory will not be changed.':'Approval received. Updating inventory and verifying; the result will appear on this card automatically.'}));this.onClick(c,body.context.action);}catch(err){if(!res.headersSent)res.writeHead(400);res.end(JSON.stringify({ephemeral_text:'The action could not be completed. Please try again.'}));console.error('Button:',err.message);}});await new Promise(resolve=>this.server.listen(Number(this.e.MATTERMOST_ACTION_PORT||18082),'0.0.0.0',resolve));}
- async receipt(c){return this.api(`/posts/${c.button_post_id}/patch`,'PUT',receiptUpdate(c,this.e.MATTERMOST_ACTION_URL));}
- async attach(c,explanation=''){c.button_token=randomBytes(32).toString('hex');this.state.save(c);let post=c.button_post_id?await this.api(`/posts/${c.button_post_id}`):null;for(let attempt=0;attempt<8&&!post;attempt++){const posts=await this.api(`/channels/${this.channel.id}/posts?per_page=30`);post=Object.values(posts.posts).find(p=>p.message.includes(`<!-- proposal:${c.id} -->`));if(post)break;await new Promise(resolve=>setTimeout(resolve,250));}if(!post)throw Error('Proposal post not found');c.button_post_id=post.id;this.state.save(c);await this.api(`/posts/${post.id}/patch`,'PUT',{message:`**${c.mode==='reset'?'Test inventory reset proposal':'Restock proposal'} · Awaiting your approval**\n\n${explanation}\n\nChange **Demo Hand Towel** available inventory from **${c.before.item.inventoryLevel.quantities[0].quantity} units** to **${c.target} units**. Price and product options stay the same.\n\nReview the change and choose:`,props:{attachments:[{text:'After approval, inventory will be updated, storefront propagation checked, and a fresh shopping session tested.',actions:['approve','cancel'].map(action=>({id:action,name:action==='approve'?(c.mode==='reset'?`Approve reset to ${c.target} units`:`Approve restock to ${c.target} units`):'Cancel',type:'button',style:action==='approve'?'primary':'default',integration:{url:this.e.MATTERMOST_ACTION_URL,context:{case_id:c.id,hash:c.hash,token:c.button_token,action}}}))}]}});for(const previous of this.state.all().filter(x=>x.state==='completed'&&x.button_post_id).slice(-3)){previous.next_card_url=this.e.MATTERMOST_URL+'/switch/pl/'+c.button_post_id;this.state.save(previous);await this.receipt(previous);}}
+  constructor(env, state, onClick) {
+    this.e = env;
+    this.state = state;
+    this.onClick = onClick;
+  }
+  async api(path, method = 'GET', body) {
+    if (!this.token) {
+      const r = await fetch(this.e.MATTERMOST_URL + '/api/v4/users/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          login_id: this.e.MATTERMOST_INTEGRATION_USER,
+          password: this.e.MATTERMOST_INTEGRATION_PASSWORD,
+        }),
+      });
+      if (!r.ok) throw Error(`Mattermost login HTTP ${r.status}`);
+      this.token = r.headers.get('token');
+    }
+    const r = await fetch(this.e.MATTERMOST_URL + '/api/v4' + path, {
+      method,
+      headers: {Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json'},
+      ...(body ? {body: JSON.stringify(body)} : {}),
+    });
+    if (!r.ok) throw Error(`Mattermost ${path} HTTP ${r.status}`);
+    return r.json();
+  }
+  async init() {
+    this.channel = await this.api('/teams/name/switch/channels/name/fix-room');
+    this.user = await this.api('/users/username/' + this.e.MATTERMOST_MERCHANT_USERNAME);
+    if (this.user.is_bot) throw Error('Merchant must be human');
+    this.server = createServer(async (req, res) => {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        if (req.method !== 'POST' || req.url !== '/actions') {
+          res.writeHead(404);
+          return res.end('{}');
+        }
+        let raw = '';
+        for await (const chunk of req) {
+          raw += chunk;
+          if (raw.length > 16384) throw Error('Request too large');
+        }
+        const body = JSON.parse(raw),
+          c = this.state.get(body.context?.case_id);
+        if (!validateButtonIdentity(body, c, this.user.id, this.channel.id)) {
+          res.writeHead(403);
+          return res.end(
+            JSON.stringify({
+              ephemeral_text:
+                'This button is no longer valid, or you are not authorized to approve this change.',
+            }),
+          );
+        }
+        if (c.state !== 'proposed') {
+          const latest = this.state
+            .all()
+            .filter(x => x.state === 'proposed' && x.button_post_id)
+            .sort((a, b) => b.created - a.created)[0];
+          const update = receiptUpdate(c, this.e.MATTERMOST_ACTION_URL);
+          update.message +=
+            '\n\n' +
+            (body.context.action === 'approve'
+              ? 'Result: ' + (c.state === 'completed' ? 'Verification passed.' : 'Current state: ' + c.state)
+              : 'Current task: ' +
+                (latest
+                  ? '[Open pending proposal](' +
+                    this.e.MATTERMOST_URL +
+                    '/switch/pl/' +
+                    latest.button_post_id +
+                    ')'
+                  : 'There is no proposal awaiting approval.')) +
+            '\nStatus checked at ' +
+            new Date().toISOString();
+          await this.api(`/posts/${c.button_post_id}/patch`, 'PUT', update);
+          return res.end(JSON.stringify({update, ephemeral_text: 'Status updated on the original card.'}));
+        }
+        c.button_consumed = true;
+        c.state = body.context.action === 'cancel' ? 'cancelled' : 'approved';
+        c[body.context.action === 'cancel' ? 'cancelled_by' : 'approved_by'] = body.user_id;
+        c.button_decision_at = Date.now();
+        c.approval_method = 'mattermost_button';
+        this.state.save(c);
+        res.end(
+          JSON.stringify({
+            update: receiptUpdate(c, this.e.MATTERMOST_ACTION_URL),
+            ephemeral_text:
+              body.context.action === 'cancel'
+                ? 'Cancelled. Inventory will not be changed.'
+                : 'Approval received. Updating inventory and verifying; the result will appear on this card automatically.',
+          }),
+        );
+        this.onClick(c, body.context.action);
+      } catch (err) {
+        if (!res.headersSent) res.writeHead(400);
+        res.end(JSON.stringify({ephemeral_text: 'The action could not be completed. Please try again.'}));
+        console.error('Button:', err.message);
+      }
+    });
+    await new Promise(resolve =>
+      this.server.listen(Number(this.e.MATTERMOST_ACTION_PORT || 18082), '0.0.0.0', resolve),
+    );
+  }
+  async receipt(c) {
+    return this.api(
+      `/posts/${c.button_post_id}/patch`,
+      'PUT',
+      receiptUpdate(c, this.e.MATTERMOST_ACTION_URL),
+    );
+  }
+  async attach(c, explanation = '') {
+    c.button_token = randomBytes(32).toString('hex');
+    this.state.save(c);
+    let post = c.button_post_id ? await this.api(`/posts/${c.button_post_id}`) : null;
+    for (let attempt = 0; attempt < 8 && !post; attempt++) {
+      const posts = await this.api(`/channels/${this.channel.id}/posts?per_page=30`);
+      post = Object.values(posts.posts).find(p => p.message.includes(`<!-- proposal:${c.id} -->`));
+      if (post) break;
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+    if (!post) throw Error('Proposal post not found');
+    c.button_post_id = post.id;
+    this.state.save(c);
+    await this.api(`/posts/${post.id}/patch`, 'PUT', {
+      message: `**${c.mode === 'reset' ? 'Test inventory reset proposal' : 'Restock proposal'} · Awaiting your approval**\n\n${explanation}\n\nChange **Demo Hand Towel** available inventory from **${c.before.item.inventoryLevel.quantities[0].quantity} units** to **${c.target} units**. Price and product options stay the same.\n\nReview the change and choose:`,
+      props: {
+        attachments: [
+          {
+            text: 'After approval, inventory will be updated, storefront propagation checked, and a fresh shopping session tested.',
+            actions: ['approve', 'cancel'].map(action => ({
+              id: action,
+              name:
+                action === 'approve'
+                  ? c.mode === 'reset'
+                    ? `Approve reset to ${c.target} units`
+                    : `Approve restock to ${c.target} units`
+                  : 'Cancel',
+              type: 'button',
+              style: action === 'approve' ? 'primary' : 'default',
+              integration: {
+                url: this.e.MATTERMOST_ACTION_URL,
+                context: {case_id: c.id, hash: c.hash, token: c.button_token, action},
+              },
+            })),
+          },
+        ],
+      },
+    });
+    for (const previous of this.state
+      .all()
+      .filter(x => x.state === 'completed' && x.button_post_id)
+      .slice(-3)) {
+      previous.next_card_url = this.e.MATTERMOST_URL + '/switch/pl/' + c.button_post_id;
+      this.state.save(previous);
+      await this.receipt(previous);
+    }
+  }
 }
