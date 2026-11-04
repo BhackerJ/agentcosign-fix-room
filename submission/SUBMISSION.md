@@ -30,8 +30,10 @@ provides the chat UI and native button callback; it is not the agent routing lay
 ## Implementation boundaries
 Anthropic interprets natural language and explains evidence. A deterministic
 Node worker controls the state machine, proposal binding and inventory API.
-The shopping check is a fixed-task Playwright probe, not an autonomous shopping
-agent. Shopify is a development-store fixture; no checkout or payment occurs.
+The demo video runs an existing browser shopping agent before and after the repair
+and confirms each outcome with a separate Playwright probe. That agent's harness is
+private and not in this repository, so a clean clone runs the Playwright probe
+alone. Shopify is a development-store fixture; no checkout or payment occurs.
 Human quantity is an asserted warehouse fact, not independently audited stock.
 
 ## Demonstrated result
@@ -42,7 +44,7 @@ See ACCEPTANCE.md for the evidence boundaries.
 
 ## Links
 Repository: https://github.com/BhackerJ/agentcosign-fix-room
-Demo video: pending recording
+Demo video: pending upload
 
 ## Current limits
 One dedicated product, stock only, standard Shopify form selectors, manual

@@ -33,15 +33,22 @@ and [submission description](submission/SUBMISSION.md).
 Node 24+, Switch server with a bridged room (Mattermost recommended), two custom
 agent registrations with the same owner, an Anthropic API key, and a Shopify
 development store with a single dedicated inventory-tracked test product.
-No private project checkout or private Python harness is required.
+The self-contained fixed-probe mode needs no private checkout. Full shopping-agent mode uses an existing AgentCoSign checkout and is configured separately below.
 
 ## Setup
 
 1. Run `npm ci` and `npx playwright install chromium`.
 2. Copy `.env.example` to `.env`; keep it private.
-3. Register `fix-room-analyst` and `fix-room-repair` in Switch, invite both and
-   the merchant to one room. Configure both to accept their owner and sibling
-   agents. Switch disallows an agent changing its own settings: use the owner's
+3. Start a Switch stack with its Mattermost profile (tested with Switch core
+   0.31.0 and Mattermost 11.9.0; see the
+   [Switch docs](https://docs.switchagents.ai/switch-rooms/getting-started/add-a-second-agent)).
+   Copy that stack's env file to `infra/.env`, then run
+   `node scripts/register-agents.mjs` and `node scripts/create-room.mjs`. They
+   write the agent keys and room ID to `.runtime/` (keep it private) and expect the
+   API on port 18000. The room is named Fix Room, which the bridge exposes as
+   channel `fix-room` in team `switch`; set `MATTERMOST_TEAM` and
+   `MATTERMOST_CHANNEL` if yours differ. Invite both agents and the merchant.
+   Configure both to accept their owner and sibling agents. Switch disallows an agent changing its own settings: use the owner's
    settings or have sibling agents configure each other.
 4. Fill the agent IDs, API keys and room ID. `MERCHANT_PARTICIPANT_ID` is the human UUID returned by Switch `list_participants`.
    `MERCHANT_SENDER_ID` is that person’s transport sender from an independently
@@ -55,6 +62,26 @@ No private project checkout or private Python harness is required.
    Supply app client credentials. Existing fixtures can be used; no fixture seed
    command is included yet. Never use a production store.
 6. Fill Anthropic settings and storefront password; run `npm start`.
+
+## Full shopping-agent mode
+
+Set `AGENTCOSIGN_ROOT` to an existing AgentCoSign checkout with its Python environment,
+OpenClaw browser driver, report app bundle and model configuration already installed.
+The wrapper in `scripts/run-shopping-agent.py` runs the same cart-only shopping task
+before and after a stock repair, retains the browser trajectory and screenshots,
+and uses the existing report builder to generate an English shopping replay.
+Authentication details are redacted from the rendered replay. Raw records remain private.
+
+In this mode the shopping agent must observe either the disabled Sold out button
+or the matching item, quantity and price in its cart. A separate Playwright probe
+must confirm the same outcome. A model saying DONE alone is insufficient. Reset
+is only fixture preparation and continues to use the fixed probe. The Switch
+analyst and repair agent still handle the evidence, warehouse fact, proposal and
+human approval. The shopping agent cannot mutate inventory.
+
+The existing AgentCoSign harness and report app are not bundled in this repository;
+without that checkout, leave `AGENTCOSIGN_ROOT` empty to use fixed-probe mode.
+Do not present fixed-probe results as a full model-driven shopping-agent visit.
 
 ## Room flow
 
@@ -104,8 +131,8 @@ browser-reachable host and published port, for example `http://127.0.0.1:18065`
 and `ws://127.0.0.1:18065`. An incorrect real-time address can leave cards stale
 even when the backend has completed the work. Use wss for an HTTPS deployment.
 
-The shopper is a fixed-task Playwright probe, not a model-driven shopper. It
-uses the public product page and ordinary Add to cart button, then reads the
+In fixed-probe mode the shopper is a fixed-task Playwright probe, not a
+model-driven shopper. It uses the public product page and ordinary Add to cart button, then reads the
 same browser context's Ajax cart. It receives no Admin credentials or warehouse
 facts. Its current selectors target a standard Shopify product form; custom
 storefronts may require adapting the probe. No checkout or payment.
@@ -126,8 +153,8 @@ Reconnect reads room history since first start and deduplicates processed messag
 Truncated history is refused. Interrupted active cases require operator reconciliation;
 do not claim automatic crash recovery or replay an unknown write.
 
-The fixture currently uses a fixed browser probe; real browser/model shopping
-from earlier experiments is not bundled. This package does not promise a
+The self-contained bundle uses a fixed browser probe. The optional full shopping-agent
+adapter calls an existing AgentCoSign checkout; that harness and replay app are not bundled. This package does not promise a
 15-minute setup on an unconfigured Shopify store.
 
 ## Verification
@@ -136,5 +163,4 @@ from earlier experiments is not bundled. This package does not promise a
 deduplication, changed-baseline refusal, idempotency/CAS parameters and no blind
 write retry. Unit tests do not substitute for a human-approved live room run.
 
-Source is published for inspection and evaluation; no license grant is bundled.
-Existing dependencies retain their own licenses.
+MIT licensed; see [LICENSE](LICENSE). Dependencies retain their own licenses.

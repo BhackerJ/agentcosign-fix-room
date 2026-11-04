@@ -140,3 +140,35 @@ test('completed status clicks visibly patch the card without executing again', a
     await new Promise(resolve => b.server.close(resolve));
   }
 });
+
+test('the card reports what a failed proposal actually changed', async () => {
+  const {receiptUpdate} = await import('../src/buttons.mjs');
+  const base = {...c, id: 'test', target: 25};
+  const url = 'http://callback.invalid/actions';
+  assert.match(
+    receiptUpdate({...base, state: 'blocked', after: {}}, url).message,
+    /Inventory is now 25 units/,
+  );
+  assert.match(receiptUpdate({...base, state: 'conflict'}, url).message, /No inventory write was sent/);
+  const unknown = receiptUpdate({...base, state: 'blocked'}, url).message;
+  assert.match(unknown, /Check current inventory/);
+  assert.doesNotMatch(unknown, /Inventory is now/);
+});
+
+test('team and channel come from configuration, with Switch stack defaults', async () => {
+  const {Buttons} = await import('../src/buttons.mjs');
+  for (const [env, expected] of [
+    [{}, '/teams/name/switch/channels/name/fix-room'],
+    [{MATTERMOST_TEAM: 'ops', MATTERMOST_CHANNEL: 'stock'}, '/teams/name/ops/channels/name/stock'],
+  ]) {
+    const paths = [];
+    const b = new Buttons({MATTERMOST_ACTION_PORT: '0', ...env}, {}, () => {});
+    b.api = async path => {
+      paths.push(path);
+      return {id: 'x'};
+    };
+    await b.init();
+    b.server.close();
+    assert.ok(paths.includes(expected));
+  }
+});

@@ -5,10 +5,13 @@ import {randomUUID} from 'node:crypto';
 import {State, hash, approvalAllowed, factAction} from './state.mjs';
 import {Agent} from './switch.mjs';
 import {Shopify} from './shopify.mjs';
-import {shop} from './shopper.mjs';
+import {shop as probe} from './shopper.mjs';
+import {shopWithAgent} from './agent-shopper.mjs';
 import {waitForStorefront} from './propagation.mjs';
 import {reason} from './model.mjs';
 const e = process.env;
+const shop = (config, dir) =>
+  e.AGENTCOSIGN_ROOT ? shopWithAgent(config, dir, e, probe) : probe(config, dir);
 for (const key of [
   'SWITCH_URL',
   'SWITCH_ROOM_ID',
@@ -107,43 +110,43 @@ async function handle(event, agent, role) {
     participants.some(x => x.id === e.MERCHANT_PARTICIPANT_ID && x.type === 'user');
   let body = p.body.trim();
   let c;
-  if (role === 'analyst' && human && !/^(start |fact |approve |resume storefront)/.test(body)) {
-    const waiting = state.all().filter(x => x.state === 'needs_fact');
-    const intent = await interpret(body, waiting.length === 1, e);
-    if (intent.action === 'fact' && waiting.length === 1) body = `fact ${waiting[0].id} ${intent.quantity}`;
-    else if (['inspect', 'reset'].includes(intent.action)) {
-      const active = state
-        .all()
-        .find(x =>
-          [
-            'needs_fact',
-            'fact_received',
-            'proposed',
-            'approved',
-            'applying',
-            'applied',
-            'retest_running',
-          ].includes(x.state),
-        );
-      if (active) {
+  try {
+    if (role === 'analyst' && human && !/^(start |fact |approve |resume storefront)/.test(body)) {
+      const waiting = state.all().filter(x => x.state === 'needs_fact');
+      const intent = await interpret(body, waiting.length === 1, e);
+      if (intent.action === 'fact' && waiting.length === 1) body = `fact ${waiting[0].id} ${intent.quantity}`;
+      else if (['inspect', 'reset'].includes(intent.action)) {
+        const active = state
+          .all()
+          .find(x =>
+            [
+              'needs_fact',
+              'fact_received',
+              'proposed',
+              'approved',
+              'applying',
+              'applied',
+              'retest_running',
+            ].includes(x.state),
+          );
+        if (active) {
+          await agent.post(
+            'A task is already in progress. Reply with the stock quantity, or approve or cancel its latest proposal.',
+          );
+          state.mark(dedupe);
+          return;
+        }
+        body = intent.action === 'reset' ? 'start reset' : 'start stock';
+      } else {
         await agent.post(
-          'A task is already in progress. Reply with the stock quantity, or approve or cancel its latest proposal.',
+          intent.action === 'status'
+            ? 'Progress, proposals and verification results appear here. Check the latest task message.'
+            : 'Say "Why can’t customers buy the towel?" or "Reset the test inventory to zero." When asked, reply with the actual stock quantity. Use the proposal buttons to approve.',
         );
         state.mark(dedupe);
         return;
       }
-      body = intent.action === 'reset' ? 'start reset' : 'start stock';
-    } else {
-      await agent.post(
-        intent.action === 'status'
-          ? 'Progress, proposals and verification results appear here. Check the latest task message.'
-          : 'Say "Why can’t customers buy the towel?" or "Reset the test inventory to zero." When asked, reply with the actual stock quantity. Use the proposal buttons to approve.',
-      );
-      state.mark(dedupe);
-      return;
     }
-  }
-  try {
     if (role === 'analyst' && human && body === 'resume storefront') {
       state.setSetting('store_blocked', 'false');
       await agent.post(
@@ -164,13 +167,17 @@ async function handle(event, agent, role) {
       };
       state.save(c);
       await agent.post(
-        'I am checking the product page and a fresh shopping cart. I will report the findings here.',
+        e.AGENTCOSIGN_ROOT && c.mode === 'stock'
+          ? 'I am sending the shopping agent to try buying one towel. Its browser actions and outcome will be recorded, then checked independently.'
+          : 'I am checking the product page and a fresh shopping cart. I will report the findings here.',
       );
-      c.baseline = await shop(shopperConfig, `runs/${id}/baseline`);
+      c.baseline = await (c.mode === 'reset'
+        ? probe(shopperConfig, `runs/${id}/baseline`)
+        : shop(shopperConfig, `runs/${id}/baseline`));
       c.before = await shopify.snapshot();
       c.state = 'needs_fact';
       state.save(c);
-      const analysis = await reason('evidence analyst', {baseline: c.baseline}, e);
+      const analysis = await reason('evidence analyst', {baseline: c.baseline, inventory: c.before}, e);
       await agent.post(
         `${analysis}\n${c.mode === 'reset' ? 'What quantity should the simulated test inventory be reset to?' : 'How many sellable units are in the warehouse? For example: "The warehouse has 25 units."'}`,
       );
@@ -272,7 +279,9 @@ async function handle(event, agent, role) {
       state.save(c);
       c.state = 'retest_running';
       state.save(c);
-      c.retest = await shop(shopperConfig, `runs/${c.id}/retest`);
+      c.retest = await (c.mode === 'reset'
+        ? probe(shopperConfig, `runs/${c.id}/retest`)
+        : shop(shopperConfig, `runs/${c.id}/retest`));
       c.state = 'completed';
       c.result =
         c.mode === 'reset'
@@ -298,12 +307,13 @@ async function handle(event, agent, role) {
     }
     state.mark(dedupe);
   } catch (error) {
-    if (error.message.includes('429')) state.setSetting('store_blocked', 'true');
+    if (error.message.includes('BLOCKED: HTTP 429')) state.setSetting('store_blocked', 'true');
     if (c) {
       c.resume_from = c.state;
       c.state = error.message.includes('CONFLICT') ? 'conflict' : 'blocked';
       c.error = error.message;
       state.save(c);
+      if (c.button_post_id) await buttons.receipt(c).catch(err => console.error('Card:', err.message));
     }
     await agent.post(`${c?.id || 'Request'} blocked: ${error.message}. No automatic mutation retry.`);
     state.mark(dedupe);

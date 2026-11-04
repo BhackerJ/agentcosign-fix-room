@@ -18,14 +18,23 @@ export function validateButtonIdentity(body, c, user, channel) {
 export function validateClick(body, c, user, channel) {
   return c?.state === 'proposed' && validateButtonIdentity(body, c, user, channel);
 }
+function failureMessage(c) {
+  if (c.after)
+    return `**Inventory is now ${c.target} units, but verification did not finish.**\nSee the room for details. No automatic retry. No checkout or payment.`;
+  if (c.state === 'conflict')
+    return '**Not applied: inventory changed after this proposal.**\nNo inventory write was sent. Start a new request for a fresh proposal.';
+  return '**This change did not finish.**\nCheck current inventory before starting a new request. No automatic retry.';
+}
 export function receiptUpdate(c, url) {
   const cancelled = c.state === 'cancelled';
   return {
     message: cancelled
       ? 'Cancelled. No inventory change.'
-      : c.state === 'completed'
-        ? `**${c.mode === 'reset' ? 'Test inventory reset' : 'Restock'} completed: inventory is ${c.target} units.**\n${c.mode === 'reset' ? 'Storefront confirmed sold out; the fresh cart is empty.' : 'Storefront confirmed available; a fresh shopping session added 1 item.'}\nNo checkout or payment. No further approval is needed.${c.next_card_url ? '\n\n[Open the latest approval proposal](' + c.next_card_url + ')' : ''}`
-        : 'Approval received. Applying the change and verifying the result.',
+      : ['blocked', 'conflict'].includes(c.state)
+        ? failureMessage(c)
+        : c.state === 'completed'
+          ? `**${c.mode === 'reset' ? 'Test inventory reset' : 'Restock'} completed: inventory is ${c.target} units.**\n${c.mode === 'reset' ? 'Storefront confirmed sold out; the fresh cart is empty.' : 'Storefront confirmed available; a fresh shopping session added 1 item.'}\nNo checkout or payment. No further approval is needed.${c.next_card_url ? '\n\n[Open the latest approval proposal](' + c.next_card_url + ')' : ''}`
+          : 'Approval received. Applying the change and verifying the result.',
     props: {
       attachments: [
         {
@@ -71,7 +80,10 @@ export class Buttons {
     return r.json();
   }
   async init() {
-    this.channel = await this.api('/teams/name/switch/channels/name/fix-room');
+    this.team = this.e.MATTERMOST_TEAM || 'switch';
+    this.channel = await this.api(
+      `/teams/name/${this.team}/channels/name/${this.e.MATTERMOST_CHANNEL || 'fix-room'}`,
+    );
     this.user = await this.api('/users/username/' + this.e.MATTERMOST_MERCHANT_USERNAME);
     if (this.user.is_bot) throw Error('Merchant must be human');
     this.server = createServer(async (req, res) => {
@@ -111,7 +123,9 @@ export class Buttons {
                 (latest
                   ? '[Open pending proposal](' +
                     this.e.MATTERMOST_URL +
-                    '/switch/pl/' +
+                    '/' +
+                    this.team +
+                    '/pl/' +
                     latest.button_post_id +
                     ')'
                   : 'There is no proposal awaiting approval.')) +
@@ -195,7 +209,7 @@ export class Buttons {
       .all()
       .filter(x => x.state === 'completed' && x.button_post_id)
       .slice(-3)) {
-      previous.next_card_url = this.e.MATTERMOST_URL + '/switch/pl/' + c.button_post_id;
+      previous.next_card_url = this.e.MATTERMOST_URL + '/' + this.team + '/pl/' + c.button_post_id;
       this.state.save(previous);
       await this.receipt(previous);
     }
