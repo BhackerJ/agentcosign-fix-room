@@ -34,4 +34,6 @@ Deliberately configured faults on fictional development-store products, not proa
 
 Repository: https://github.com/BhackerJ/agentcosign-fix-room
 
-Coupon demo: real browser and approval footage recorded; final video and presenter recording are being prepared. Existing stock footage is secondary historical material.
+Demo video: https://youtu.be/FEW8cEMk9xg
+
+Coupon demo: final two-minute video completed with the builder’s own English narration and face-to-camera inset. It shows real browser shopping, both native human approvals, the addressed Switch handoff and automatic verified completion. Held frames and speed changes are labeled. The earlier stock footage is secondary historical material.

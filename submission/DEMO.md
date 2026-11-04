@@ -1,6 +1,6 @@
 # Coupon demo — English presenter guide
 
-The November 4 public-client round has been recorded, including both human approvals and fresh shopping visits. The store is back at $30; no additional reset is needed to use that footage. The English silent edit is prepared for the merchant’s own face-to-camera narration. The final presenter video and upload remain pending. Existing stock footage is separate historical material.
+The November 4 public-client round has been recorded, including both human approvals and fresh shopping visits. The store is back at $30; no additional reset is needed to use that footage. The final approximately two-minute presenter edit is complete, with the builder’s own English narration and face-to-camera inset. Watch the final video: https://youtu.be/FEW8cEMk9xg. Existing stock footage is separate historical material.
 
 ## Planned 90–120 second explanation
 

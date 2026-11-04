@@ -17,6 +17,12 @@ The same workflow repairs a product whose inventory wrongly reads zero.
 
 **Latest public-client live result (November 4, 2026):** a human approved FIXROOM20 minimum $50 → $30; read-back preserved 20% and the other recorded settings. The bundled public shopper and independent probe agreed on $6.40 off and $25.60 before tax/shipping. No checkout or payment. See [acceptance and verification limits](submission/ACCEPTANCE.md).
 
+## Demo
+
+[Watch the final two-minute demo on YouTube](https://youtu.be/FEW8cEMk9xg).
+
+The final two-minute demo includes the builder’s English narration and face-to-camera inset, real Shopify shopping before and after repair, both native human approvals, the targeted Switch handoff, and automatic completion without a page refresh. The incident is deliberately configured on fictional development-store products. Edited, held and sped-up scenes are labeled; no checkout or payment occurs.
+
 ## Architecture
 
 ```mermaid
