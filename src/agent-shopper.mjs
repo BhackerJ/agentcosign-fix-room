@@ -1,3 +1,4 @@
+import {publicShop, shopperMode} from './public-shopper.mjs';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {resolve} from 'node:path';
@@ -9,7 +10,7 @@ export function agentOutcome(agent, probe) {
   const done = /(?:^|\n)\s*DONE\b/.test(agent.report) && agent.cart_observed === true,
     unavailable =
       /(?:^|\n)\s*CANNOT_COMPLETE\b/.test(agent.report) &&
-      /sold out|out of stock|unavailable/i.test(agent.report) &&
+      /sold out|out of stock|unavailable|cannot be applied/i.test(agent.report) &&
       agent.purchase_disabled_observed === true;
   if (!((done && probe.success) || (unavailable && probe.unavailable)))
     throw Error('Shopping agent observations and independent browser check did not confirm the same outcome');
@@ -28,11 +29,20 @@ export function agentOutcome(agent, probe) {
   };
 }
 export async function shopWithAgent(config, dir, env, probe) {
+  if (shopperMode(env) === 'public') {
+    const agent = await publicShop(config, resolve(dir, 'agent'), env);
+    if (agent.status !== 'ok' || agent.guard_stops?.length) throw Error('Public shopper failed; inspect local evidence');
+    return agentOutcome(agent, await probe(config, dir));
+  }
   const root = env.AGENTCOSIGN_ROOT;
   const {stdout} = await exec(
     resolve(root, '.venv/bin/python'),
     [fileURLToPath(new URL('../scripts/run-shopping-agent.py', import.meta.url)), resolve(dir, 'agent')],
-    {env, timeout: 330000, maxBuffer: 1024 * 1024},
+    {
+      env: {...env, PRODUCT_HANDLE: config.handle, SHOPPING_CASE: config.task || 'stock'},
+      timeout: 330000,
+      maxBuffer: 1024 * 1024,
+    },
   );
   const agent = JSON.parse(stdout.trim().split('\n').at(-1));
   const check = await probe(config, dir);

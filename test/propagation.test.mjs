@@ -34,3 +34,20 @@ test('429 stops observer immediately without retry', async t => {
   assert.equal(calls, 1);
   assert.ok(disposed);
 });
+
+test('a coupon change waits for a fresh cart to agree, then gives up as unverified', async () => {
+  const {waitForCoupon} = await import('../src/propagation.mjs');
+  const results = [{success: false}, {success: true}];
+  assert.deepEqual(await waitForCoupon(attempt => results[attempt], true, {delay: 0}), {
+    attempts: 2,
+    accepted: true,
+  });
+  await assert.rejects(
+    waitForCoupon(() => ({success: false}), true, {attempts: 2, delay: 0}),
+    /applied but not verified/,
+  );
+  assert.deepEqual(await waitForCoupon(() => ({success: false}), false, {delay: 0}), {
+    attempts: 1,
+    accepted: false,
+  });
+});

@@ -24,9 +24,15 @@ handle = os.environ['PRODUCT_HANDLE']
 principal = Principal(
     id='fixroom-shopper', name='Demo Shopper', home=Home(address='Test household, Los Angeles', zip='90001')
 )
+promotion = os.environ.get('SHOPPING_CASE') == 'promotion'
+code = os.environ.get('DISCOUNT_CODE', '')
 task = Task(
-    id='fixroom-stock-shopping',
+    id='fixroom-coupon-shopping' if promotion else 'fixroom-stock-shopping',
     prompt=[
+        f'Please put two Demo Travel Pouches at $16 each in my cart, starting at https://{domain}/products/{handle}. Use the advertised {code} promotion if eligible. My budget for the merchandise after discount is $26, before tax or shipping. Check the advertised terms and actual discount and merchandise subtotal. Use the Discount section in the cart to apply the code once. Do not start checkout or enter personal or payment details. If the cart cannot verify the discount, stop and report that limitation. No substitutes or additional items. If the code fails, record the exact message and stop; do not try other codes or retry. Use only the normal browser UI, no HTTP/API calls, shell or page scripts. Use one tab, do not reload or revisit pages unnecessarily. Allow pages to settle between actions. If rate limiting, HTTP 429, CAPTCHA or a verification challenge appears, stop immediately without retrying. Do not browse unrelated products. Take a viewport-only screenshot of the final relevant state (fullPage=false). Do not take full-page screenshots during this visit. Report DONE only after observing the discount and a merchandise subtotal within budget in the cart. Report CANNOT_COMPLETE if blocked, with observed facts; do not ask follow-up questions.'
+    ]
+    if promotion
+    else [
         f'Please put one Demo Hand Towel, Single pack, in my cart. Start at https://{domain}/products/{handle}. No substitutions. If unavailable, report that and stop. Stop at the cart; do not start checkout, enter personal details, or place an order. Use only the normal browser UI, no HTTP/API calls, shell, or page scripts. Use one tab. If HTTP 429, CAPTCHA, or a browser verification challenge appears, stop without retrying or refreshing. Do not browse unrelated products. Take a viewport-only screenshot of the final state. Report DONE only after observing the matching item, quantity one, and twelve-dollar price in the cart. Do not repeat authentication credentials in your report; otherwise report CANNOT_COMPLETE with observed facts.'
     ],
 )
@@ -39,12 +45,16 @@ packet = build(
     own_store=True,
     storefront_password=password,
     time_limit_s=240,
-    title='Add one Demo Hand Towel, Single — stop at the cart',
+    title='Add two Demo Travel Pouches with the coupon — stop at the cart'
+    if promotion
+    else 'Add one Demo Hand Towel, Single — stop at the cart',
 )
 packet.how_far = 'Stop at the cart. No checkout, order, or payment.'
 started = time.time()
-# The stock task has no Discount accordion. Keep the native recorder for full replay frames.
-r = openclaw.run(packet, principal, own_domains=(domain,), ask=False)
+# The stock task has no Discount accordion, so it keeps the native recorder for full replay frames.
+# The recorder's full-page capture closes that accordion, so the coupon task runs without it and has no replay.
+overlay = {'browser': {'recorder': {'enabled': False}}} if promotion else None
+r = openclaw.run(packet, principal, own_domains=(domain,), ask=False, config_overlay=overlay)
 
 
 def encode(o):
@@ -82,15 +92,19 @@ report = '\n'.join(e.get('report', '') for e in ep['events'] if e['kind'] == 'fi
     password, '[REDACTED]'
 )
 observed = [(e.get('text') or '') for e in ep['events'] if e['kind'] == 'page_seen']
-cart_observed = any(
-    all(t in text for t in ['Demo Hand Towel', 'Single', '12.00'])
-    and re.search(r'Total items in cart:\s*1\b', text)
-    for text in observed
-)
-purchase_disabled_observed = any(
-    re.search(r'^\s*- button(?: \"(?:Sold out|Add to cart)\")? \[disabled\]', text, re.I | re.M)
-    for text in observed
-)
+if promotion:
+    cart_observed = any(all(t in text for t in ['Demo Travel Pouch', '25.60']) for text in observed)
+    purchase_disabled_observed = any('cannot be applied' in text.lower() for text in observed)
+else:
+    cart_observed = any(
+        all(t in text for t in ['Demo Hand Towel', 'Single', '12.00'])
+        and re.search(r'Total items in cart:\s*1\b', text)
+        for text in observed
+    )
+    purchase_disabled_observed = any(
+        re.search(r'^\s*- button(?: \"(?:Sold out|Add to cart)\")? \[disabled\]', text, re.I | re.M)
+        for text in observed
+    )
 summary = {
     'cart_observed': cart_observed,
     'purchase_disabled_observed': purchase_disabled_observed,
@@ -102,6 +116,9 @@ summary = {
     'recorded_run': str(out),
 }
 (out / 'summary.json').write_text(json.dumps(summary, indent=2))
+if promotion:
+    print(json.dumps(summary), flush=True)
+    sys.exit(0)
 batch = out.parent / 'batch.json'
 batch.write_text(
     json.dumps(

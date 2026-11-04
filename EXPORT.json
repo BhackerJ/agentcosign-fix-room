@@ -1,0 +1,7 @@
+{
+  "package": "agentcosign-fix-room",
+  "scope": "coupon repair primary; stock repair secondary",
+  "sourceScan": "passed configured patterns",
+  "includesPrivateTraces": false,
+  "publicClientLiveAcceptance": true
+}

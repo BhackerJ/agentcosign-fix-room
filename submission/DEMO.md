@@ -1,34 +1,19 @@
-# English-only demo recording script (2–3 minutes)
+# Coupon demo — English presenter guide
 
-Use English narration, captions and chat messages throughout. Start at the new
-English conversation; earlier Chinese test history is not part of the demo.
+The November 4 public-client round has been recorded, including both human approvals and fresh shopping visits. The store is back at $30; no additional reset is needed to use that footage. The English silent edit is prepared for the merchant’s own face-to-camera narration. The final presenter video and upload remain pending. Existing stock footage is separate historical material.
 
-Before recording: worker online; analyst and repair agent connected to the same
-Switch room; dedicated fictional product has 25 available units. Keep the room
-open throughout. Do not refresh or cut around failures. Do not show credentials,
-callback context, developer tools, or raw state files. No checkout or payment.
+## Planned 90–120 second explanation
 
-1. **0:00 — Problem (15 seconds).** “A stock mismatch can stop a merchant selling.
-   Fix Room lets the merchant resolve it in team chat with two agents and a human approval.”
-2. **0:15 — Explain the room (15 seconds).** Identify the human, analyst and repair
-   agent. “Switch delivers messages, shared room context and the agent-to-agent handoff.”
-3. **0:30 — Reset fixture (30–45 seconds).** Say/type `Reset the test inventory to zero.`.
-   When asked, reply `The warehouse has 0 units.`. Show the proposal's 25 → 0 change. The human
-   clicks **Approve reset to 0 units** once. Capture the immediate approved/executing card
-   and its automatic completed result. Explain that this sets up the simulated incident.
-4. **1:15 — Diagnose and propose (30 seconds).** Say/type `Why can’t customers buy the towel?`.
-   Show the analyst's sold-out finding. Reply `The warehouse has 25 units.`. Show the Switch handoff
-   to the repair agent and its 0 → 25 proposal.
-5. **1:45 — Approve and verify (30–45 seconds).** Human clicks **Approve restock to 25 units**.
-   Keep the same page visible: approved/executing → inventory read-back → storefront
-   propagation → clean-cart retest. Show completed stock 25 and one matching cart item.
-6. **2:30 — Close (15 seconds).** “Models interpret and explain. Deterministic code
-   validates approval and inventory writes; Playwright checks the real storefront.
-   No checkout. Source and setup instructions are in the repository.”
+1. **Before/after proof:** “The page promises twenty percent off from thirty dollars. This thirty-two-dollar cart was rejected. After an approved repair, the same task receives six dollars forty off.” Show the actual before and after cart evidence, clearly labeled if historical.
+2. **Report:** Merchant says “Why was the FIXROOM20 coupon rejected?” Show the shopping agent's browser attempt and independent rejection check.
+3. **Analyst:** Explain the advertised $30 and configured $50 conflict. Merchant replies “The campaign minimum is $30.” It is a business decision supplied by the merchant, not inferred permission to write.
+4. **Switch handoff:** Show the analyst's addressed thread to the repair agent. Explain that Switch delivers the shared evidence and merchant fact; the repair agent prepares the exact proposal.
+5. **Human control:** Show FIXROOM20 minimum $50 → $30 and the human clicking its approval button once. Capture immediate acknowledgement.
+6. **Verification:** Worker compares the snapshot, writes, reads back $30 and confirms unchanged 20%. Fresh shopping agent and independent probe verify two $16 pouches, $6.40 off, $25.60 before tax/shipping. Show automatic completion without refresh.
+7. **Close:** “Agents coordinate through Switch. The merchant approves. The real shopping journey verifies the repair. No checkout or payment.”
 
-Acceptance checklist: no refresh; immediate visible acknowledgement captured;
-completion appears automatically; both agents' handoff visible; human performs
-both approvals; inventory and cart results visible. If any step fails, keep the
-failure evidence and fix it before claiming this recording is successful.
+## Recording acceptance
 
-Video URL: pending recording and upload.
+Keep all copy/narration in English. Do not expose credentials, callback contexts, raw private traces or unrelated windows. Label edits, held frames or historical takes. A continuous-take claim requires an actual uninterrupted recording; otherwise describe it as edited. Do not invent a live discovery or claim the public replacement driver produced the historical OpenClaw result.
+
+The aligned face-to-camera script is in [PRESENTER-SCRIPT.md](PRESENTER-SCRIPT.md). The silent coupon edit is 1 minute 38 seconds.

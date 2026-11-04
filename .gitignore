@@ -1,3 +1,12 @@
+infra/.env
+.runtime/
+node_modules/
 .env
 runs/
-node_modules/
+dist/
+*.tgz
+
+# Private recordings, screenshots and infrastructure state
+video/
+evidence/
+infra/

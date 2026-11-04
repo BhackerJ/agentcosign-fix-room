@@ -25,3 +25,13 @@ export async function waitForStorefront(config, available) {
     await context.dispose();
   }
 }
+
+// A coupon has no public availability flag, so only a fresh cart can show the change has reached the storefront.
+export async function waitForCoupon(check, accepted, {attempts = 3, delay = 10000} = {}) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const result = await check(attempt);
+    if (result.success === accepted) return {attempts: attempt + 1, accepted};
+    if (attempt < attempts - 1) await new Promise(resolve => setTimeout(resolve, delay));
+  }
+  throw Error('Coupon change not confirmed in a fresh cart; applied but not verified');
+}

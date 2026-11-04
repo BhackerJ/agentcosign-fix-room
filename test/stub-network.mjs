@@ -1,6 +1,7 @@
 // Preloaded into the worker under test: answers the model and Shopify hosts, which the worker addresses directly.
 const realFetch = globalThis.fetch;
 let available = 0;
+let minimum = '50.0';
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}});
 
@@ -11,6 +12,27 @@ globalThis.fetch = async (url, options) => {
   if (hostname !== process.env.SHOPIFY_DOMAIN) return realFetch(url, options);
   if (pathname.endsWith('/oauth/access_token')) return json({access_token: 'stub'});
   const {query, variables} = JSON.parse(options.body);
+  if (query.includes('discountCodeBasicUpdate')) {
+    minimum = variables.input.minimumRequirement.subtotal.greaterThanOrEqualToSubtotal;
+    return json({data: {discountCodeBasicUpdate: {userErrors: []}}});
+  }
+  if (query.includes('codeDiscountNode')) {
+    return json({
+      data: {
+        codeDiscountNode: {
+          codeDiscount: {
+            status: 'ACTIVE',
+            codes: {nodes: [{code: process.env.DISCOUNT_CODE}]},
+            minimumRequirement: {greaterThanOrEqualToSubtotal: {amount: minimum, currencyCode: 'USD'}},
+            customerGets: {
+              value: {percentage: 0.2},
+              items: {products: {nodes: [{handle: process.env.OFFER_HANDLE}]}},
+            },
+          },
+        },
+      },
+    });
+  }
   if (query.includes('inventorySetQuantities')) {
     available = variables.input.quantities[0].quantity;
     return json({data: {inventorySetQuantities: {userErrors: []}}});

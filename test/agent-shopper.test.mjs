@@ -45,3 +45,18 @@ test('an explanatory preface does not erase an explicit unavailable marker', () 
     ).unavailable,
     true,
   ));
+
+test('a rejected coupon needs the agent and the probe to agree', async () => {
+  const {agentOutcome} = await import('../src/agent-shopper.mjs');
+  const agent = {
+    status: 'ok',
+    report: 'CANNOT_COMPLETE\nDiscount code cannot be applied to your cart',
+    purchase_disabled_observed: true,
+  };
+  assert.equal(agentOutcome(agent, {success: false, unavailable: true}).unavailable, true);
+  assert.throws(() => agentOutcome(agent, {success: true, unavailable: false}), /did not confirm/);
+  assert.throws(
+    () => agentOutcome({...agent, purchase_disabled_observed: false}, {success: false, unavailable: true}),
+    /did not confirm/,
+  );
+});

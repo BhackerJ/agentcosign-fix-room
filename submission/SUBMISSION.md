@@ -1,52 +1,37 @@
 # AgentCoSign Fix Room
 
-**Track:** Best Business Workflow
+**Proposed track:** Best Business Workflow
 
-**One sentence:** Two agents help a Shopify merchant diagnose a stock mismatch,
-propose a precise repair, obtain human approval in team chat, and verify that a
-customer can add the product to a fresh cart.
+**One sentence:** Two agents coordinate a merchant-approved Shopify repair through Switch, then verify it by repeating the real shopping journey.
 
 ## Problem
-A product can be physically available while its online inventory says zero.
-A merchant needs a safe path from a report in chat to a verified repair, without
-copying API commands or trusting an agent's unsupported “fixed” message.
+
+A product page promises 20% off from $30, but the actual coupon requires $50. A shopper with a $32 cart is refused. Reading the admin value alone does not tell the merchant which campaign rule is correct, or prove that a repair works for a shopper.
 
 ## What we built
-The merchant speaks naturally in a Mattermost channel bridged by Switch. An
-analyst examines the storefront, asks for the actual quantity, and passes that
-fact to a repair agent through a targeted Switch thread. The repair agent posts
-a native approval card. Only the configured human can approve that proposal.
-The executor checks for concurrent changes, writes inventory, reads it back,
-waits for storefront propagation, then opens a clean browser cart session.
-The room and original card receive the result automatically.
 
-## Why Switch is central
-Switch supplies room membership, message delivery, shared context and the
-addressed analyst-to-repair handoff. Both agents are live protocol clients.
-The worker reacts to delivered room events; the repair proposal is triggered by
-the handoff. Removing Switch breaks that event and collaboration path. Mattermost
-provides the chat UI and native button callback; it is not the agent routing layer.
+The merchant reports the problem naturally in a Mattermost channel bridged by Switch. A browser shopping agent reproduces the refused purchase; an analyst interprets its evidence and asks the merchant for the approved campaign minimum. Switch delivers that fact to the repair agent in a targeted thread. The repair agent prepares an exact $50 → $30 proposal. Only the configured human can approve its native button card.
 
-## Implementation boundaries
-Anthropic interprets natural language and explains evidence. A deterministic
-Node worker controls the state machine, proposal binding and inventory API.
-The demo video runs an existing browser shopping agent before and after the repair
-and confirms each outcome with a separate Playwright probe. That agent's harness is
-private and not in this repository, so a clean clone runs the Playwright probe
-alone. Shopify is a development-store fixture; no checkout or payment occurs.
-Human quantity is an asserted warehouse fact, not independently audited stock.
+A deterministic worker checks a fresh configuration snapshot, writes only the proposed coupon minimum, and reads it back. It then runs a fresh shopping agent and independent Playwright cart check. The original card receives completion automatically. The merchant never copies hashes or API commands.
 
-## Demonstrated result
-A real human-approved reset → stock round completed: 25 → 0 produced a sold-out
-page and empty fresh cart; 0 → 25 produced public availability and one matching
-item in a fresh cart. Both propagation checks converged on attempt two.
-See ACCEPTANCE.md for the evidence boundaries.
+## Why Switch matters
 
-## Links
+Switch supplies authenticated room participants, shared context, delivered events and the addressed analyst-to-repair handoff that triggers the proposal. Mattermost supplies the chat UI and button callback, not agent routing. The analyst interprets evidence and gathers the missing business fact; the repair agent prepares the bound proposal. Neither model receives store Admin tools. The worker alone controls approved mutations.
+
+## Measured result
+
+In the completed development-store coupon round, two $16 pouches ($32) were refused before repair. After one human approval and a verified minimum change to $30, the real shopping agent and independent probe each confirmed $6.40 off and a $25.60 merchandise subtotal, before tax/shipping. The 20% rate and other recorded settings stayed unchanged. No checkout, order or payment. See ACCEPTANCE.md and ACCEPTANCE.json.
+
+## Public reproduction
+
+The bundled Node/Playwright shopper asks Anthropic to choose visible browser controls and records the visit locally. A separate deterministic probe must agree; DONE alone cannot pass. No private harness is required for this mode. See JUDGE-GUIDE.md for setup and the local no-key tests.
+
+The latest completed live round used the bundled public client with real Anthropic decisions, native human approval and fresh Shopify carts. The public client and independent probe agreed before and after. Earlier OpenClaw runs are listed separately as historical evidence. Judges still need their own configured development store, model key and Switch room; no hosted judge account is claimed.
+
+## Scope and limits
+
+Deliberately configured faults on fictional development-store products, not proactive fault discovery. Coupon minimum and stock repair only; no arbitrary store fixes. The merchant's campaign fact is asserted, not audited. Shopify has no coupon compare-and-set: a fresh pre-write comparison and read-back reduce, but do not eliminate, the concurrent-edit window. Unknown writes require reconciliation; no automatic rollback or blind retry. Manual store/Switch setup is required.
+
 Repository: https://github.com/BhackerJ/agentcosign-fix-room
-Demo video: pending upload
 
-## Current limits
-One dedicated product, stock only, standard Shopify form selectors, manual
-infrastructure and fixture setup. No automatic rollback or crash recovery.
-Unknown writes require operator reconciliation; no blind mutation retry.
+Coupon demo: real browser and approval footage recorded; final video and presenter recording are being prepared. Existing stock footage is secondary historical material.

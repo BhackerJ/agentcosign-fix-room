@@ -7,6 +7,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {WebSocketServer} from 'ws';
+import {DatabaseSync} from 'node:sqlite';
 import {State} from '../src/state.mjs';
 
 const WORKER = fileURLToPath(new URL('../src/worker.mjs', import.meta.url));
@@ -105,6 +106,7 @@ async function startWorker({modelStatus = 200, cases = []}) {
     cwd,
     stdio: 'ignore',
     env: {
+      SHOPPER_MODE: 'probe',
       PATH: process.env.PATH,
       STUB_MODEL_STATUS: String(modelStatus),
       SWITCH_URL: base,
@@ -130,6 +132,10 @@ async function startWorker({modelStatus = 200, cases = []}) {
       MATTERMOST_INTEGRATION_USER: 'u',
       MATTERMOST_INTEGRATION_PASSWORD: 'p',
       MATTERMOST_MERCHANT_USERNAME: 'human',
+      DISCOUNT_ID: 'discount',
+      DISCOUNT_CODE: 'SAVE20',
+      OFFER_HANDLE: 'pouch',
+      OFFER_VARIANT_ID: 'offer-variant',
       MATTERMOST_ACTION_URL: `http://127.0.0.1:${actionPort}/actions`,
       MATTERMOST_ACTION_PORT: String(actionPort),
     },
@@ -140,13 +146,17 @@ async function startWorker({modelStatus = 200, cases = []}) {
     patches,
     sockets,
     actionPort,
-    readState(read) {
-      const state = new State(join(cwd, 'runs/state.sqlite'));
+    // Read-only with a busy timeout: the running worker may be writing to the same database.
+    readRow(sql, ...params) {
+      const db = new DatabaseSync(join(cwd, 'runs/state.sqlite'), {readOnly: true, timeout: 5000});
       try {
-        return read(state);
+        return db.prepare(sql).get(...params);
       } finally {
-        state.close();
+        db.close();
       }
+    },
+    readCase(id) {
+      return JSON.parse(this.readRow('SELECT data FROM cases WHERE id=?', id).data);
     },
     async stop() {
       child.kill();
@@ -182,10 +192,7 @@ test('a model rate limit reaches the room and does not pause the storefront', as
       'the failure in the room',
     );
     assert.match(post, /blocked/);
-    assert.equal(
-      worker.readState(state => state.setting('store_blocked', 'false')),
-      'false',
-    );
+    assert.notEqual(worker.readRow("SELECT value FROM settings WHERE key='store_blocked'")?.value, 'true');
   } finally {
     await worker.stop();
   }
@@ -227,10 +234,57 @@ test('a failure after the write updates the approval card, not just the room', a
       () => worker.posts.some(text => text.includes('stock-test blocked')),
       'the failure in the room',
     );
-    assert.equal(
-      worker.readState(state => state.get(proposal.id).state),
-      'blocked',
+    assert.equal(worker.readCase(proposal.id).state, 'blocked');
+  } finally {
+    await worker.stop();
+  }
+});
+
+test('an approved coupon change is written and a failed check reports it on the card', async () => {
+  const before = {
+    store: STORE,
+    id: 'discount',
+    code: 'SAVE20',
+    minimum: 50,
+    percentage: 20,
+    unchanged: {
+      status: 'ACTIVE',
+      codes: {nodes: [{code: 'SAVE20'}]},
+      customerGets: {value: {percentage: 0.2}, items: {products: {nodes: [{handle: 'pouch'}]}}},
+    },
+  };
+  const proposal = {
+    id: 'offer-test',
+    version: 1,
+    state: 'proposed',
+    mode: 'promotion',
+    target: 30,
+    hash: 'hash',
+    button_post_id: 'post',
+    button_token: 'secret-token',
+    before,
+    baseline: {success: false, subtotal_cents: 3200},
+    created: 1,
+  };
+  const worker = await startWorker({cases: [proposal]});
+  try {
+    const click = await fetch(`http://127.0.0.1:${worker.actionPort}/actions`, {
+      method: 'POST',
+      body: JSON.stringify({
+        user_id: 'human',
+        channel_id: 'channel',
+        post_id: 'post',
+        context: {case_id: proposal.id, hash: 'hash', token: 'secret-token', action: 'approve'},
+      }),
+    });
+    assert.equal(click.status, 200);
+    // The storefront host does not resolve, so the fresh-cart check fails after the coupon was written and read back.
+    const patch = await until(
+      () => worker.patches.find(p => /did not finish/.test(p.message)),
+      'the card to report the failure',
     );
+    assert.match(patch.message, /coupon minimum is now \$30/);
+    assert.equal(worker.readCase(proposal.id).after.minimum, 30);
   } finally {
     await worker.stop();
   }

@@ -1,6 +1,49 @@
 {
-  "fixture": "fictional Shopify development-store towel",
-  "rounds": [
+  "primary_case": "coupon minimum repair",
+  "tested_dates_local": [
+    "2026-11-04"
+  ],
+  "timezone": "America/Los_Angeles",
+  "fixture": "fictional Shopify development-store Demo Travel Pouch",
+  "deliberately_configured_fault": true,
+  "state": "completed",
+  "advertised_minimum_usd": 30,
+  "before": {
+    "configured_minimum_usd": 50,
+    "quantity": 2,
+    "unit_price_cents": 1600,
+    "merchandise_cents": 3200,
+    "coupon_applicable": false,
+    "discount_cents": 0,
+    "subtotal_after_discount_cents": 3200,
+    "shopping_agent_seconds": 20.798
+  },
+  "approval": {
+    "method": "mattermost_button",
+    "approved_change": "FIXROOM20 minimum $50 -> $30",
+    "consumed_once": true
+  },
+  "after": {
+    "readback_minimum_usd": 30,
+    "percentage": 20,
+    "other_recorded_settings_unchanged": true,
+    "coupon_applicable": true,
+    "quantity": 2,
+    "discount_cents": 640,
+    "subtotal_after_discount_cents": 2560,
+    "shopping_agent_seconds": 27.05
+  },
+  "verification": {
+    "historical_driver": "private OpenClaw (earlier acceptance only)",
+    "independent_probe": "Playwright; fresh browser context; same-session Ajax cart",
+    "agent_and_probe_agreed_before_and_after": true,
+    "public_client_live_shopify_verified": true,
+    "checkout": false,
+    "order": false,
+    "payment": false,
+    "driver": "bundled public-model-browser-client"
+  },
+  "historical_stock_rounds": [
     {
       "phase": "reset",
       "state": "completed",
@@ -33,5 +76,57 @@
       ],
       "button_disabled": false
     }
-  ]
+  ],
+  "historical_acceptance": {
+    "primary_case": "coupon minimum repair",
+    "tested_dates_local": [
+      "2026-11-03",
+      "2026-11-04"
+    ],
+    "timezone": "America/Los_Angeles",
+    "fixture": "fictional Shopify development-store Demo Travel Pouch",
+    "deliberately_configured_fault": true,
+    "state": "completed",
+    "advertised_minimum_usd": 30,
+    "before": {
+      "configured_minimum_usd": 50,
+      "quantity": 2,
+      "unit_price_cents": 1600,
+      "merchandise_cents": 3200,
+      "coupon_applicable": false,
+      "discount_cents": 0,
+      "subtotal_after_discount_cents": 3200,
+      "shopping_agent_seconds": 20.798
+    },
+    "approval": {
+      "method": "mattermost_button",
+      "approved_change": "FIXROOM20 minimum $50 -> $30",
+      "consumed_once": true
+    },
+    "after": {
+      "readback_minimum_usd": 30,
+      "percentage": 20,
+      "other_recorded_settings_unchanged": true,
+      "coupon_applicable": true,
+      "quantity": 2,
+      "discount_cents": 640,
+      "subtotal_after_discount_cents": 2560,
+      "shopping_agent_seconds": 27.05
+    },
+    "verification": {
+      "historical_driver": "private OpenClaw (earlier acceptance only)",
+      "independent_probe": "Playwright; fresh browser context; same-session Ajax cart",
+      "agent_and_probe_agreed_before_and_after": true,
+      "public_client_live_shopify_verified": true,
+      "checkout": false,
+      "order": false,
+      "payment": false,
+      "driver": "bundled public-model-browser-client"
+    }
+  },
+  "local_tests": {
+    "unit_and_simulated_services": 47,
+    "browser_scripted_decisions": 5
+  },
+  "recording": "Both human approval clicks and completion captured in this live recording; final edit is not a continuous-take claim."
 }

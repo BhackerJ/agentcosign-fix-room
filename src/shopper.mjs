@@ -34,17 +34,15 @@ export async function shop(config, dir) {
       await writeFile(
         dir + '/form-debug.json',
         JSON.stringify(
-          await page
-            .locator('form,input,select,button')
-            .evaluateAll(els =>
-              els.map(el => ({
-                tag: el.tagName,
-                name: el.getAttribute('name'),
-                value: el.getAttribute('value'),
-                action: el.getAttribute('action'),
-                text: el.tagName === 'BUTTON' ? el.textContent.trim() : '',
-              })),
-            ),
+          await page.locator('form,input,select,button').evaluateAll(els =>
+            els.map(el => ({
+              tag: el.tagName,
+              name: el.getAttribute('name'),
+              value: el.getAttribute('value'),
+              action: el.getAttribute('action'),
+              text: el.tagName === 'BUTTON' ? el.textContent.trim() : '',
+            })),
+          ),
           null,
           2,
         ),

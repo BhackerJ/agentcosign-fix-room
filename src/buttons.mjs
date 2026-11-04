@@ -1,5 +1,6 @@
 import {createServer} from 'node:http';
 import {randomBytes, timingSafeEqual} from 'node:crypto';
+import {copy} from './cases.mjs';
 export function validateButtonIdentity(body, c, user, channel) {
   const token = body.context?.token;
   if (
@@ -19,26 +20,28 @@ export function validateClick(body, c, user, channel) {
   return c?.state === 'proposed' && validateButtonIdentity(body, c, user, channel);
 }
 function failureMessage(c) {
+  const text = copy(c);
   if (c.after)
-    return `**Inventory is now ${c.target} units, but verification did not finish.**\nSee the room for details. No automatic retry. No checkout or payment.`;
-  if (c.state === 'conflict')
-    return '**Not applied: inventory changed after this proposal.**\nNo inventory write was sent. Start a new request for a fresh proposal.';
-  return '**This change did not finish.**\nCheck current inventory before starting a new request. No automatic retry.';
+    return `${text.writtenNotVerified}\nSee the room for details. No automatic retry. No checkout or payment.`;
+  if (c.state === 'conflict') return `${text.notApplied} Start a new request for a fresh proposal.`;
+  return `**This change did not finish.**\n${text.checkCurrent} No automatic retry.`;
 }
 export function receiptUpdate(c, url) {
-  const cancelled = c.state === 'cancelled';
-  return {
-    message: cancelled
-      ? 'Cancelled. No inventory change.'
+  const text = copy(c);
+  const message =
+    c.state === 'cancelled'
+      ? text.cancelled
       : ['blocked', 'conflict'].includes(c.state)
         ? failureMessage(c)
         : c.state === 'completed'
-          ? `**${c.mode === 'reset' ? 'Test inventory reset' : 'Restock'} completed: inventory is ${c.target} units.**\n${c.mode === 'reset' ? 'Storefront confirmed sold out; the fresh cart is empty.' : 'Storefront confirmed available; a fresh shopping session added 1 item.'}\nNo checkout or payment. No further approval is needed.${c.next_card_url ? '\n\n[Open the latest approval proposal](' + c.next_card_url + ')' : ''}`
-          : 'Approval received. Applying the change and verifying the result.',
+          ? `${text.completed}\nNo checkout or payment. No further approval is needed.${c.next_card_url ? '\n\n[Open the latest approval proposal](' + c.next_card_url + ')' : ''}`
+          : 'Approval received. Applying the change and verifying the result.';
+  return {
+    message,
     props: {
       attachments: [
         {
-          text: 'This proposal has been processed. Repeated clicks only show status and never repeat the inventory change.',
+          text: text.processed,
           actions: ['approve', 'cancel'].map((action, i) => ({
             id: action,
             name: i === 0 ? 'View result' : 'View current task',
@@ -144,9 +147,7 @@ export class Buttons {
           JSON.stringify({
             update: receiptUpdate(c, this.e.MATTERMOST_ACTION_URL),
             ephemeral_text:
-              body.context.action === 'cancel'
-                ? 'Cancelled. Inventory will not be changed.'
-                : 'Approval received. Updating inventory and verifying; the result will appear on this card automatically.',
+              body.context.action === 'cancel' ? copy(c).cancelledNotice : copy(c).approvedNotice,
           }),
         );
         this.onClick(c, body.context.action);
@@ -181,19 +182,14 @@ export class Buttons {
     c.button_post_id = post.id;
     this.state.save(c);
     await this.api(`/posts/${post.id}/patch`, 'PUT', {
-      message: `**${c.mode === 'reset' ? 'Test inventory reset proposal' : 'Restock proposal'} · Awaiting your approval**\n\n${explanation}\n\nChange **Demo Hand Towel** available inventory from **${c.before.item.inventoryLevel.quantities[0].quantity} units** to **${c.target} units**. Price and product options stay the same.\n\nReview the change and choose:`,
+      message: `**${copy(c).cardTitle} · Awaiting your approval**\n\n${explanation}\n\n${copy(c).cardChange}\n\nReview the change and choose:`,
       props: {
         attachments: [
           {
-            text: 'After approval, inventory will be updated, storefront propagation checked, and a fresh shopping session tested.',
+            text: copy(c).afterApproval,
             actions: ['approve', 'cancel'].map(action => ({
               id: action,
-              name:
-                action === 'approve'
-                  ? c.mode === 'reset'
-                    ? `Approve reset to ${c.target} units`
-                    : `Approve restock to ${c.target} units`
-                  : 'Cancel',
+              name: action === 'approve' ? copy(c).approveLabel : 'Cancel',
               type: 'button',
               style: action === 'approve' ? 'primary' : 'default',
               integration: {
