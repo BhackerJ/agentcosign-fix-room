@@ -4,8 +4,8 @@ Speak naturally. Pause when you finish a line; the approval clicks stay at origi
 
 | Time | Spoken English |
 |---|---|
-| 0:00–0:08 | This thirty-two-dollar cart was rejected. After a human-approved repair, the same shopping task succeeds, with a twenty-five-sixty subtotal. |
-| 0:08–0:16 | This is AgentCoSign Fix Room. An analyst diagnoses, a repair agent prepares the fix, and Switch connects them in the merchant's chat. |
+| 0:00–0:08 | The coupon fails on this thirty-two-dollar cart. After an approved repair, it works, bringing the subtotal to twenty-five sixty. |
+| 0:08–0:16 | This is AgentCoSign Fix Room. The analyst investigates; the repair agent proposes changes. They coordinate through Switch. |
 | 0:16–0:20 | I approve the reset for this test. |
 | 0:20–0:30 | The shopping agent visits our own Shopify development store, adds two sixteen-dollar pouches, and tries the advertised coupon. |
 | 0:30–0:37 | The page promises twenty percent off from thirty dollars, but this thirty-two-dollar cart is refused. |
@@ -15,9 +15,9 @@ Speak naturally. Pause when you finish a line; the approval clicks stay at origi
 | 0:56–1:01 | The worker applies the change and reads the configuration back. |
 | 1:01–1:14 | Now a fresh shopping agent repeats the same task on the same store. It opens the cart, applies the coupon once, and checks the result. |
 | 1:14–1:22 | Two pouches, six-forty off, twenty-five-sixty before tax and shipping. A separate Playwright check confirms the result. |
-| 1:22–1:30 | The public repo has the shopping agent, repair workflow, and setup guide. You bring Switch, a Shopify dev store, and a model key. |
+| 1:22–1:30 | The code and setup guide are public. You’ll need Switch, a Shopify development store, and a model API key. |
 | 1:30–1:38 | That's Fix Room: a human-approved repair, coordinated through Switch, and verified through a real shopping journey. |
 
-On screen at 1:22–1:30: keep the completion footage, with the caption “Completes automatically, no refresh” and the public repo URL.
+On screen at 1:22–1:26: “Switch | Automatic completion in the original card” and “No page refresh.” At 1:26–1:30, the completed result remains visible with “No page refresh.” The public repo URL appears at 1:30–1:38.
 
 The development-store incident is deliberately configured. Do not describe it as an autonomously discovered customer incident. No checkout, order or payment occurs.
